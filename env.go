@@ -10,8 +10,15 @@ import (
 	"strings"
 )
 
+var (
+	ErrRequired = errors.New("environment variable is required")
+)
+
+// ReadEnv will populate the type with the appropriate environment variables.
 func ReadEnv(dst any) error { return ReadEnvPrefixed("", dst) }
 
+// ReadEnvPrefixed is like [ReadEnv] except will use an environment variable
+// prefix.
 func ReadEnvPrefixed(prefix string, dst any) error {
 	prefix = strings.ToUpper(prefix)
 	v := reflect.ValueOf(dst)
@@ -37,7 +44,7 @@ func read(key string, value reflect.Value, t *tag) error {
 		if ok {
 			elem.Set(reflect.ValueOf(raw))
 		} else if t != nil && t.required {
-			return fmt.Errorf("%q is required", key)
+			return fmt.Errorf("%w: %q", ErrRequired, key)
 		}
 
 	case reflect.Slice:
@@ -63,6 +70,8 @@ func read(key string, value reflect.Value, t *tag) error {
 				slice = reflect.Append(slice, s)
 			}
 			elem.Set(slice)
+		} else if t != nil && t.required {
+			return fmt.Errorf("%w: %q", ErrRequired, key)
 		}
 
 	case reflect.Array:
@@ -118,7 +127,7 @@ func read(key string, value reflect.Value, t *tag) error {
 			}
 			elem.Set(parsed)
 		} else if t != nil && t.required {
-			return fmt.Errorf("%q is requred", key)
+			return fmt.Errorf("%w: %q", ErrRequired, key)
 		}
 	}
 	return nil
