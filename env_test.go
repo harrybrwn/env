@@ -10,25 +10,33 @@ import (
 )
 
 func TestReadEnv(t *testing.T) {
+	type Embedded struct {
+		EmbeddedValue string
+	}
 	type config struct {
 		A string
 		B struct {
-			A any
-			B int
+			A    any
+			B    int
+			Test string `env:"WHAT_IS_THIS,skipprefix"`
 		}
 		C []string
 		D []string `env:",split=:"`
 		E map[string]int
+		Embedded
 	}
 	setEnvs(map[string]string{
-		"X_A":       "a",
-		"X_B_B":     "10",
-		"X_C":       "one,two,three",
-		"X_D":       "a:b:c",
-		"X_E_ONE":   "1",
-		"X_E_TWO":   "2",
-		"X_E_THREE": "3",
-		"X_E_69":    "69",
+		"X_A":          "a",
+		"X_B_B":        "10",
+		"X_C":          "one,two,three",
+		"X_D":          "a:b:c",
+		"X_E_ONE":      "1",
+		"X_E_TWO":      "2",
+		"X_E_THREE":    "3",
+		"X_E_69":       "69",
+		"WHAT_IS_THIS": "yeeyeeyee",
+		// "X_EMBEDDED_EMBEDDED_VALUE": "em",
+		"X_EMBEDDED_VALUE": "em",
 	})
 	var c config
 	err := ReadEnvPrefixed("X", &c)
@@ -49,6 +57,12 @@ func TestReadEnv(t *testing.T) {
 	}
 	if !maps.Equal(c.E, map[string]int{"ONE": 1, "TWO": 2, "THREE": 3, "69": 69}) {
 		t.Error("wrong value")
+	}
+	if c.B.Test != "yeeyeeyee" {
+		t.Errorf("wrong value for skip prefixed attribute: want %q, got %q", "yeeyeeyee", c.B.Test)
+	}
+	if c.EmbeddedValue != "em" {
+		t.Errorf("wrong value of embedded struct field")
 	}
 }
 
@@ -252,6 +266,9 @@ func TestToSnake(t *testing.T) {
 		{"ToSnake", "to_snake"},
 		{"value", "value"},
 		{"vaLue", "va_lue"},
+		{"HomeURL", "home_url"},
+		{"DBLocation", "db_location"},
+		{"URLValue", "url_value"},
 	} {
 		if res := toSnake(tt[0]); res != tt[1] {
 			t.Errorf("expected snake case of %q to be %q, got %q", tt[0], tt[1], res)

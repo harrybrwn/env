@@ -86,6 +86,12 @@ func read(key string, value reflect.Value, t *tag) error {
 		for i := 0; i < n; i++ {
 			sf := et.Field(i)
 			name := toSnakeUpper(sf.Name)
+			if sf.Anonymous {
+				name = ""
+				if len(key) > 0 {
+					key = key[:len(key)-1]
+				}
+			}
 			var t *tag
 			tag, ok := sf.Tag.Lookup("env")
 			if ok && len(tag) > 0 {
@@ -96,6 +102,9 @@ func read(key string, value reflect.Value, t *tag) error {
 				}
 				if len(t.name) > 0 {
 					name = t.name
+					if t.skipprefix {
+						key = ""
+					}
 				}
 			}
 			err := read(key+name, elem.Field(i).Addr(), t)
@@ -134,9 +143,10 @@ func read(key string, value reflect.Value, t *tag) error {
 }
 
 type tag struct {
-	name     string
-	required bool
-	split    string
+	name       string
+	required   bool
+	split      string
+	skipprefix bool
 }
 
 func parseTag(raw string) (*tag, error) {
@@ -161,6 +171,8 @@ func parseTag(raw string) (*tag, error) {
 				return nil, errors.New("must specify a split string e.g. split=,")
 			}
 			t.split = val
+		case "skipprefix", "noprefix":
+			t.skipprefix = true
 		}
 	}
 	return &t, nil
