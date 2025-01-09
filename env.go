@@ -22,12 +22,12 @@ func ReadEnv(dst any) error { return ReadEnvPrefixed("", dst) }
 func ReadEnvPrefixed(prefix string, dst any) error {
 	prefix = strings.ToUpper(prefix)
 	v := reflect.ValueOf(dst)
-	return read(prefix, v, nil)
+	return read(prefix, v, nil, 0)
 }
 
 const defaultArraySplit = ','
 
-func read(key string, value reflect.Value, t *tag) error {
+func read(key string, value reflect.Value, t *tag, depth uint) error {
 	if value.Kind() != reflect.Pointer {
 		return errors.New("cannot populate non pointer type")
 	}
@@ -86,28 +86,44 @@ func read(key string, value reflect.Value, t *tag) error {
 		for i := 0; i < n; i++ {
 			sf := et.Field(i)
 			name := toSnakeUpper(sf.Name)
+			k := key
 			if sf.Anonymous {
 				name = ""
-				if len(key) > 0 {
-					key = key[:len(key)-1]
+				if len(k) > 0 {
+					k = k[:len(k)-1]
 				}
 			}
-			var t *tag
+
+			var (
+				t   *tag
+				err error
+			)
 			tag, ok := sf.Tag.Lookup("env")
 			if ok && len(tag) > 0 {
-				var err error
 				t, err = parseTag(tag)
 				if err != nil {
 					return err
 				}
+				if t.skip {
+					break // break out of switch
+				}
 				if len(t.name) > 0 {
 					name = t.name
 					if t.skipprefix {
-						key = ""
+						k = ""
 					}
 				}
 			}
-			err := read(key+name, elem.Field(i).Addr(), t)
+
+			fieldElem := elem.Field(i)
+			if sf.Type.Kind() == reflect.Pointer {
+				if fieldElem.IsNil() {
+					fieldElem.Set(reflect.New(sf.Type.Elem()))
+				}
+				err = read(k+name, fieldElem, t, depth+1)
+			} else {
+				err = read(k+name, fieldElem.Addr(), t, depth+1)
+			}
 			if err != nil {
 				return err
 			}
@@ -147,6 +163,7 @@ type tag struct {
 	required   bool
 	split      string
 	skipprefix bool
+	skip       bool
 }
 
 func parseTag(raw string) (*tag, error) {
@@ -173,6 +190,8 @@ func parseTag(raw string) (*tag, error) {
 			t.split = val
 		case "skipprefix", "noprefix":
 			t.skipprefix = true
+		case "-", "skip":
+			t.skip = true
 		}
 	}
 	return &t, nil

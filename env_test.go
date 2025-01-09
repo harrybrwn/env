@@ -13,8 +13,15 @@ func TestReadEnv(t *testing.T) {
 	type Embedded struct {
 		EmbeddedValue string
 	}
+	type Embedded2 struct {
+		YeeYee string
+	}
+	type Inner struct {
+		InnerValue string
+	}
 	type config struct {
 		A string
+		*Embedded2
 		B struct {
 			A    any
 			B    int
@@ -24,6 +31,7 @@ func TestReadEnv(t *testing.T) {
 		D []string `env:",split=:"`
 		E map[string]int
 		Embedded
+		T *Inner
 	}
 	setEnvs(map[string]string{
 		"X_A":          "a",
@@ -37,7 +45,10 @@ func TestReadEnv(t *testing.T) {
 		"WHAT_IS_THIS": "yeeyeeyee",
 		// "X_EMBEDDED_EMBEDDED_VALUE": "em",
 		"X_EMBEDDED_VALUE": "em",
+		"X_YEE_YEE":        "abc",
+		"X_T_INNER_VALUE":  "yes",
 	})
+
 	var c config
 	err := ReadEnvPrefixed("X", &c)
 	if err != nil {
@@ -63,6 +74,61 @@ func TestReadEnv(t *testing.T) {
 	}
 	if c.EmbeddedValue != "em" {
 		t.Errorf("wrong value of embedded struct field")
+	}
+	if c.T == nil {
+		t.Fatal("expected nil value to be created")
+	}
+	if c.T.InnerValue != "yes" {
+		t.Errorf("expected %q, got %q", "yes", c.T.InnerValue)
+	}
+	if c.Embedded2 == nil {
+		t.Fatal("embeded struct pointer should not be nil")
+	}
+	if c.YeeYee != "abc" {
+		t.Errorf("expected %q, got %q", "abc", c.YeeYee)
+	}
+}
+
+func TestEmbeddedStruct(t *testing.T) {
+	type Embedded struct {
+		EmbeddedValue string
+	}
+	type config struct {
+		Embedded
+	}
+	setEnvs(map[string]string{
+		"E_EMBEDDED_VALUE": "em",
+	})
+	var c config
+	err := ReadEnvPrefixed("E", &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.EmbeddedValue != "em" {
+		t.Errorf("wrong value of embedded struct field: expected %q, got %q", "em", c.EmbeddedValue)
+	}
+}
+
+func TestNestedNilPointer(t *testing.T) {
+	type Inner struct {
+		InnerValue string
+	}
+	type config struct {
+		T *Inner
+	}
+	setEnvs(map[string]string{
+		"C_T_INNER_VALUE": "yes",
+	})
+	var c config
+	err := ReadEnvPrefixed("C", &c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.T == nil {
+		t.Fatal("expected nil value to be created")
+	}
+	if c.T.InnerValue != "yes" {
+		t.Errorf("expected %q, got %q", "yes", c.T.InnerValue)
 	}
 }
 
