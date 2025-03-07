@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -281,17 +282,24 @@ func toSnakeUpper(s string) string {
 func toSnake(camel string) (snake string) {
 	var b strings.Builder
 	diff := 'a' - 'A'
-	l := len(camel)
-	for i, v := range camel {
-		if v >= 'a' {
-			b.WriteRune(v)
+	for i, r := range camel {
+		if r >= 'a' {
+			b.WriteRune(r)
 			continue
 		}
-		if (i != 0 || i == l-1) && ((i > 0 && rune(camel[i-1]) >= 'a') ||
-			(i < l-1 && rune(camel[i+1]) >= 'a')) {
-			b.WriteRune('_')
+		if i > 0 {
+			prev := rune(camel[i-1])
+			if unicode.IsUpper(r) && (unicode.IsLower(prev) || unicode.IsDigit(prev)) ||
+				unicode.IsLetter(r) && unicode.IsDigit(prev) ||
+				(i < len(camel)-1 && unicode.IsUpper(r) && unicode.IsLower(rune(camel[i+1]))) {
+				b.WriteRune('_')
+			}
 		}
-		b.WriteRune(v + diff)
+		if 'A' <= r && r <= 'Z' {
+			b.WriteRune(r + diff)
+		} else {
+			b.WriteRune(r)
+		}
 	}
 	return b.String()
 }

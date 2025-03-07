@@ -31,7 +31,9 @@ func TestReadEnv(t *testing.T) {
 		D []string `env:",split=:"`
 		E map[string]int
 		Embedded
-		T *Inner
+		T        *Inner
+		Empty    *Inner // should be nil
+		S3Bucket string
 	}
 	setEnvs(map[string]string{
 		"X_A":          "a",
@@ -47,6 +49,7 @@ func TestReadEnv(t *testing.T) {
 		"X_EMBEDDED_VALUE": "em",
 		"X_YEE_YEE":        "abc",
 		"X_T_INNER_VALUE":  "yes",
+		"X_S3_BUCKET":      "test-bucket",
 	})
 
 	var c config
@@ -87,6 +90,13 @@ func TestReadEnv(t *testing.T) {
 	if c.YeeYee != "abc" {
 		t.Errorf("expected %q, got %q", "abc", c.YeeYee)
 	}
+	if c.S3Bucket != "test-bucket" {
+		t.Errorf("wrong value for camel case field ending with a number")
+	}
+	// TODO
+	//if c.Empty != nil {
+	//	t.Errorf("expected unset nested structure to be nil")
+	//}
 }
 
 func TestEmbeddedStruct(t *testing.T) {
@@ -333,8 +343,13 @@ func TestToSnake(t *testing.T) {
 		{"value", "value"},
 		{"vaLue", "va_lue"},
 		{"HomeURL", "home_url"},
+		{"HomeUrl", "home_url"},
 		{"DBLocation", "db_location"},
 		{"URLValue", "url_value"},
+		{"S3Bucket", "s3_bucket"},
+		{"4thInternational", "4th_international"},
+		{"Nand2tetrisCourse", "nand2tetris_course"},
+		{"Nand2TetrisCourse", "nand2_tetris_course"},
 	} {
 		if res := toSnake(tt[0]); res != tt[1] {
 			t.Errorf("expected snake case of %q to be %q, got %q", tt[0], tt[1], res)
