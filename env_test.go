@@ -357,6 +357,15 @@ func TestToSnake(t *testing.T) {
 	}
 }
 
+func TestGet(t *testing.T) {
+	if Get("_NOT_HERE", t.Name()) != t.Name() {
+		t.Error("wrong default value")
+	}
+	if Get("_NOT_HERE") != "" {
+		t.Error("wrong empty value")
+	}
+}
+
 func setEnvs(m map[string]string) {
 	for k, v := range m {
 		os.Setenv(strings.ToUpper(k), v)
